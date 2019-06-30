@@ -1,18 +1,31 @@
-from flask import Flask, url_for, request, render_template
+from flask import Flask, session, url_for, request, render_template, abort, redirect
 app = Flask(__name__)
+
+# Set the secret key to some random bytes. Keep this really secret!
+app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
 
 
 @app.route('/')
 def index():
-    return 'Index Page'
+    if 'username' in session:
+        return 'Logged in as %s' % escape(session['username'])
+    return redirect(url_for('login'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    abort(401)
+    error = None
     if request.method == 'POST':
-        return do_the_login()
-    else:
-        return show_the_login_form()
+        session['username'] = request.from['username']
+        if valid_login(request.form['username'],
+                       request.form['password']):
+            return log_the_user_in(request.form['username'])
+        else:
+            error = 'Invalid username/passworrd'
+    # the code below is executed if the request method
+    # was GET or the credentials were invalid
+    return render_template('login.html', error=error)
 
 
 @app.route('/user/<username>')
@@ -48,7 +61,20 @@ def projects():
 def about():
     return 'The about page'
 
+
 @app.route('/hello/')
 @app.route('/hello/<name>')
 def hello(name=None):
     return render_template('hello.html', name=name)
+
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        f = request.files['the_file']
+        f.save('/var/www/uploads/uploaded')
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('page_not_found.html'), 404
