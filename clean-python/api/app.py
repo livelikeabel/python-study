@@ -13,11 +13,11 @@ class CustomJSONEncoder(JSONEncoder):
 
 
 app = Flask(__name__)
-app.json_encoder = CustomJSONEncoder
 
 app.users = {}
 app.id_count = 1
 app.tweets = []
+app.json_encoder = CustomJSONEncoder
 
 @app.route("/ping", methods=['GET'])
 def ping():
@@ -78,3 +78,18 @@ def unfollow():
     user.setdefault('follow', set()).discard(user_id_to_unfollow)
 
     return jsonify(user)
+
+
+@app.route("/timeline/<int:user_id>", methods=['GET'])
+def timeline(user_id):
+    if user_id not in app.users:
+        return '사용자가 존재하지 않습니다.', 400
+
+    follow_list = app.users[user_id].get('follow', set())
+    follow_list.add(user_id)
+    timeline = [tweet for tweet in app.tweets if tweet['user_id'] in follow_list]
+
+    return jsonify({
+       'user_id': user_id,
+       'timeline': timeline 
+    })
