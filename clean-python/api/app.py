@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, current_app
 from flask.json import JSONEncoder
 from sqlalchemy import create_engine, text
+import bcrypt
 
 ## Default JSON encoder는 set을 JSON으로 변환할 수 없다.
 ## 그러므로 커스텀 엔코더를 작성해서 set을 list로 변환하여
@@ -108,10 +109,14 @@ def create_app(test_config = None):
     @app.route("/sign-up", methods=['POST'])
     def sign_up():
         new_user = request.json
+        new_user['password'] = bcrypt.hashpw(
+            new_user['password'].encode('UTF-8'),
+            bcrypt.gensalt()
+        )
         new_user_id = insert_user(new_user)
-        new_user = get_user(new_user_id)
+        new_user_info = get_user(new_user_id)
 
-        return jsonify(new_user)
+        return jsonify(new_user_info)
 
     @app.route("/tweet", methods=["POST"])
     def tweet():
