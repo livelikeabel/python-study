@@ -130,6 +130,34 @@ def create_app(test_config = None):
 
         return '', 200
 
+    @app.route("/login", methods=['POST'])
+    def login():
+        credential = request.json
+        email = credential['email']
+        password = credential['password']
+
+        row = database.execute(text(""".
+            SELECT
+                id,
+                hashed_password
+            FROM users
+            WHERE email = :email
+        """), {'email' : email}).fetchone()
+
+        if row and bcrypt.checkpw(password.encode('UTF-8'), row['hashed_password'].encode('UTF-8')):
+            user_id = row['id']
+            payload = {
+                'user_id': user_id,
+                'exp': datetime.utcnow() + timedelta(seconds = 60 * 60 * 24)
+            }
+            token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], 'HS256')
+
+            return jsonify({
+                'access_token': token.decode('UTF-8')
+            })
+        else:
+            return '', 401
+
     @app.route("/follow", methods=['POST'])
     def follow():
         payload = request.json
