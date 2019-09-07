@@ -1,7 +1,9 @@
-from flask import Flask, jsonify, request, current_app
+from flask import Flask, jsonify, request, current_app, Response
 from flask.json import JSONEncoder
 from sqlalchemy import create_engine, text
 import bcrypt
+import jwt
+from functools import wraps
 
 ## Default JSON encoder는 set을 JSON으로 변환할 수 없다.
 ## 그러므로 커스텀 엔코더를 작성해서 set을 list로 변환하여
@@ -87,6 +89,29 @@ def get_timeline(user_id):
         'user_id': tweet['user_id'],
         'tweet': tweet['tweet']
     } for tweet in timeline]
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        access_token = request.headers.get('Authorization')
+        if access_token is not None:
+            try:
+                payload = jwt.decode(access_token, current_app.config['JWT_SECRET_KEY'], 'HS256')
+            except jwt.InvalidTokenError:
+                payload = None
+
+            if payload is None: return Response(status=401)
+
+
+            user_id = payload['user_id']
+            g.user_id = user_id
+            g.user = get_user_info(user_id) if user_id else None
+        else:
+            return Response(status = 401)
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def create_app(test_config = None):
