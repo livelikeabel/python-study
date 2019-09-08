@@ -209,7 +209,8 @@ def create_app(test_config = None):
             token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], 'HS256')
 
             return jsonify({
-                'access_token': token.decode('UTF-8')
+                'access_token': token.decode('UTF-8'),
+                'user_id': user_id
             })
         else:
             return '', 401
