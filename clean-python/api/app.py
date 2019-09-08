@@ -1,9 +1,11 @@
-from flask import Flask, jsonify, request, current_app, Response
+import jwt
+import bcrypt
+
+from flask import Flask, jsonify, request, current_app, Response, g
 from flask.json import JSONEncoder
 from sqlalchemy import create_engine, text
-import bcrypt
-import jwt
 from functools import wraps
+from datetime import datetime, timedelta
 
 ## Default JSON encoder는 set을 JSON으로 변환할 수 없다.
 ## 그러므로 커스텀 엔코더를 작성해서 set을 list로 변환하여
@@ -38,7 +40,7 @@ def get_user(user_id):
 
 def insert_user(user):
     return current_app.database.execute(text("""
-        INSERT_INTO users (
+        INSERT INTO users (
             name,
             email,
             profile,
@@ -91,6 +93,24 @@ def get_timeline(user_id):
     } for tweet in timeline]
 
 
+def get_user_id_and_password(email):
+    row = current_app.database.execute(text("""
+        SELECT
+            id,
+            hashed_password
+        FROM users
+        WHERE email = :email
+    """), {'email': email}).fetchone()
+
+    return {
+        'id': row['id'],
+        'hashed_password': row['hashed_password']    
+    } if row else None
+
+#########################################################
+#       Decorators
+#########################################################
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -138,10 +158,11 @@ def create_app(test_config = None):
             new_user['password'].encode('UTF-8'),
             bcrypt.gensalt()
         )
-        new_user_id = insert_user(new_user)
-        new_user_info = get_user(new_user_id)
 
-        return jsonify(new_user_info)
+        new_user_id = insert_user(new_user)
+        new_user = get_user(new_user_id)
+
+        return jsonify(new_user)
 
     @app.route("/tweet", methods=["POST"])
     @login_required
@@ -162,17 +183,10 @@ def create_app(test_config = None):
         credential = request.json
         email = credential['email']
         password = credential['password']
+        user_credential = get_user_id_and_password(email)
 
-        row = database.execute(text(""".
-            SELECT
-                id,
-                hashed_password
-            FROM users
-            WHERE email = :email
-        """), {'email' : email}).fetchone()
-
-        if row and bcrypt.checkpw(password.encode('UTF-8'), row['hashed_password'].encode('UTF-8')):
-            user_id = row['id']
+        if user_credential and bcrypt.checkpw(password.encode('UTF-8'), user_credential['hashed_password'].encode('UTF-8')):
+            user_id = user_credential['id']
             payload = {
                 'user_id': user_id,
                 'exp': datetime.utcnow() + timedelta(seconds = 60 * 60 * 24)
