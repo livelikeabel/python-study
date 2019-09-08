@@ -6,6 +6,7 @@ from flask.json import JSONEncoder
 from sqlalchemy import create_engine, text
 from functools import wraps
 from datetime import datetime, timedelta
+from flask_cors import CORS
 
 ## Default JSON encoder는 set을 JSON으로 변환할 수 없다.
 ## 그러므로 커스텀 엔코더를 작성해서 set을 list로 변환하여
@@ -149,6 +150,8 @@ def login_required(f):
 def create_app(test_config = None):
     app = Flask(__name__)
 
+    CORS(app)
+    
     app.json_encoder = CustomJSONEncoder
 
     if test_config is None:
@@ -219,6 +222,7 @@ def create_app(test_config = None):
 
         return '', 200
 
+
     @app.route("/unfollow", methods=['POST'])
     @login_required
     def unfollow():
@@ -228,11 +232,22 @@ def create_app(test_config = None):
         return '', 200
 
 
-    @app.route("/timeline/<int:user_id>", methods=['GET'])
+    @app.route('/timeline/<int:user_id>', methods=['GET'])
     def timeline(user_id):
         return jsonify({
-           'user_id': user_id,
-           'timeline': get_timeline(user_id) 
+            'user_id'  : user_id,
+            'timeline' : get_timeline(user_id)
+        })
+   
+   
+    @app.route("/timeline", methods=['GET'])
+    @login_required
+    def user_timeline():
+        user_id = g.user_id
+
+        return jsonify({
+            'user_id': user_id,
+            'timeline': get_timeline(user_id) 
         })
 
     return app
