@@ -144,8 +144,10 @@ def create_app(test_config = None):
         return jsonify(new_user_info)
 
     @app.route("/tweet", methods=["POST"])
+    @login_required
     def tweet():
         user_tweet = request.json
+        user_tweet['id'] = g.user.id
         tweet = user_tweet["tweet"]
 
         if len(tweet) > 300:
@@ -184,6 +186,7 @@ def create_app(test_config = None):
             return '', 401
 
     @app.route("/follow", methods=['POST'])
+    @login_required
     def follow():
         payload = request.json
         insert_follow(payload)
@@ -191,6 +194,7 @@ def create_app(test_config = None):
         return '', 200
 
     @app.route("/unfollow", methods=['POST'])
+    @login_required
     def unfollow():
         payload = request.json
         insert_unfollow(payload)
