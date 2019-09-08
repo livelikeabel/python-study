@@ -54,6 +54,18 @@ def insert_user(user):
     """), user).lastrowid
 
 
+def insert_tweet(user_tweet):
+    return current_app.database.execute(text("""
+        INSERT INTO tweets (
+            user_id,
+            tweet
+        ) VALUES (
+            :id,
+            :tweet
+        )
+    """), user_tweet).rowcount
+
+
 def insert_follow(user_follow):
     return current_app.database.execute(text("""
         INSERT INTO users_follow_list (
@@ -126,7 +138,7 @@ def login_required(f):
 
             user_id = payload['user_id']
             g.user_id = user_id
-            g.user = get_user_info(user_id) if user_id else None
+            g.user = get_user(user_id) if user_id else None
         else:
             return Response(status = 401)
 
@@ -168,7 +180,7 @@ def create_app(test_config = None):
     @login_required
     def tweet():
         user_tweet = request.json
-        user_tweet['id'] = g.user.id
+        user_tweet['id'] = g.user_id
         tweet = user_tweet["tweet"]
 
         if len(tweet) > 300:
